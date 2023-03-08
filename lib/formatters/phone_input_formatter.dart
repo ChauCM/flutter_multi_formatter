@@ -2374,7 +2374,10 @@ class PhoneCodes {
       'countryRU': 'Вьетнам',
       'internalPhoneCode': '84',
       'countryCode': 'VN',
-      'phoneMask': '+00 000 000 0000',
+      'phoneMask': '+00 0000 000 000',
+       'altMasks': [
+        '+00 000 000 000',
+      ],
     },
     {
       'country': 'Virgin Islands, British',
