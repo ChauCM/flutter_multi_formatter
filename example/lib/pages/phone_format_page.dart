@@ -13,6 +13,7 @@ class _PhoneFormatPageState extends State<PhoneFormatPage> {
   TextEditingController _russianPhoneController =
       TextEditingController(text: '9998887766');
   PhoneCountryData? _initialCountryData;
+  PhoneCountryData? _initialCountryDataFiltered;
 
   @override
   void dispose() {
@@ -30,7 +31,6 @@ class _PhoneFormatPageState extends State<PhoneFormatPage> {
   @override
   Widget build(BuildContext context) {
     return Unfocuser(
-      minScrollDistance: 10.0,
       child: Scaffold(
         appBar: AppBar(
           centerTitle: true,
@@ -86,7 +86,10 @@ class _PhoneFormatPageState extends State<PhoneFormatPage> {
                         flex: 3,
                         child: CountryDropdown(
                           printCountryName: true,
-                          initialCountryCode: 'RU',
+                          initialCountryData:
+                              PhoneCodes.getPhoneCountryDataByCountryCode(
+                            'RU',
+                          ),
                           onCountrySelected: (PhoneCountryData countryData) {
                             setState(() {
                               _initialCountryData = countryData;
@@ -98,7 +101,7 @@ class _PhoneFormatPageState extends State<PhoneFormatPage> {
                       Expanded(
                         flex: 5,
                         child: TextFormField(
-                          key: ValueKey(_initialCountryData ?? 'country'),
+                          key: ValueKey(_initialCountryData),
                           decoration: InputDecoration(
                             border: OutlineInputBorder(),
                             hintText: _initialCountryData
@@ -121,10 +124,66 @@ class _PhoneFormatPageState extends State<PhoneFormatPage> {
                       )
                     ],
                   ),
+                  SizedBox(height: 30.0),
                   _getText(
-                    _initialCountryData == null
+                    'The next input uses a predefined country code',
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: CountryDropdown(
+                          printCountryName: true,
+                          initialCountryData:
+                              PhoneCodes.getPhoneCountryDataByCountryCode(
+                            'RU',
+                          ),
+                          filter: PhoneCodes.findCountryDatasByCountryCodes(
+                            countryIsoCodes: [
+                              'RU',
+                              'BR',
+                              'DE',
+                            ],
+                          ),
+                          onCountrySelected: (PhoneCountryData countryData) {
+                            setState(() {
+                              _initialCountryDataFiltered = countryData;
+                            });
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 10.0),
+                      Expanded(
+                        flex: 5,
+                        child: TextFormField(
+                          key: Key(_initialCountryDataFiltered?.countryCode ??
+                              'country2'),
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(),
+                            hintText: _initialCountryDataFiltered
+                                ?.phoneMaskWithoutCountryCode,
+                            hintStyle:
+                                TextStyle(color: Colors.black.withOpacity(.3)),
+                            errorStyle: TextStyle(
+                              color: Colors.red,
+                            ),
+                          ),
+                          keyboardType: TextInputType.phone,
+                          inputFormatters: [
+                            PhoneInputFormatter(
+                              allowEndlessPhone: true,
+                              defaultCountryCode:
+                                  _initialCountryDataFiltered?.countryCode,
+                            )
+                          ],
+                        ),
+                      )
+                    ],
+                  ),
+                  _getText(
+                    _initialCountryDataFiltered == null
                         ? 'A country is not detected'
-                        : 'The country is: ${_initialCountryData?.country}',
+                        : 'The country is: ${_initialCountryDataFiltered?.country}',
                   ),
                   SizedBox(
                     height: 10.0,

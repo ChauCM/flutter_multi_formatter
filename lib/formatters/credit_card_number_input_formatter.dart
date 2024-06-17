@@ -26,8 +26,8 @@ THE SOFTWARE.
 
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_multi_formatter/utils/luhn_algo.dart';
 
 import 'formatter_utils.dart';
 
@@ -41,6 +41,8 @@ class CardSystem {
   static const String MAESTRO = 'Maestro';
   static const String AMERICAN_EXPRESS = 'Amex';
   static const String DINERS_CLUB = 'DinersClub';
+  static const String UZ_CARD = 'UzCard';
+  static const String HUMO = 'HUMO';
 }
 
 class CreditCardNumberInputFormatter extends TextInputFormatter {
@@ -127,12 +129,11 @@ class CreditCardNumberInputFormatter extends TextInputFormatter {
   }
 }
 
-/// checks not only for a length and characters but also
-/// for card system code. If it's not found the succession of numbers
-/// will not be marked as a valid card number
-bool isCardValidNumber(
-  String cardNumber, {
+/// [useLuhnAlgo] validates the number using the Luhn algorithm
+bool isCardNumberValid({
+  required String cardNumber,
   bool checkLength = false,
+  bool useLuhnAlgo = true,
 }) {
   cardNumber = toNumericString(
     cardNumber,
@@ -147,18 +148,38 @@ bool isCardValidNumber(
   if (countryData == null) {
     return false;
   }
+  if (useLuhnAlgo) {
+    final isLuhnOk = checkNumberByLuhn(number: cardNumber);
+    if (!isLuhnOk) {
+      return false;
+    }
+  }
   var formatted = _formatByMask(cardNumber, countryData.numberMask!);
   var reprocessed = toNumericString(formatted);
   return reprocessed == cardNumber &&
       (checkLength == false || reprocessed.length == countryData.numDigits);
 }
 
-String formatAsCardNumber(
+/// checks not only for a length and characters but also
+/// for card system code. If it's not found the succession of numbers
+/// will not be marked as a valid card number
+@Deprecated('Use isCardNumberValid() instead')
+bool isCardValidNumber(
   String cardNumber, {
-  bool useSeparators = true,
+  bool checkLength = false,
 }) {
-  if (!isCardValidNumber(cardNumber)) {
-    return cardNumber;
+  return isCardNumberValid(
+    cardNumber: cardNumber,
+    checkLength: checkLength,
+    useLuhnAlgo: false,
+  );
+}
+
+String formatAsCardNumber(String cardNumber) {
+  if (!isCardNumberValid(
+    cardNumber: cardNumber,
+  )) {
+    return _formatByMask(cardNumber, '0000 0000 0000 0000');
   }
   cardNumber = toNumericString(
     cardNumber,
@@ -227,17 +248,14 @@ class CardSystemData {
 }
 
 class _CardSystemDatas {
-  /// рекурсивно ищет в номере карты код системы, начиная с конца
-  /// нужно для того, чтобы даже после setState и обнуления данных карты
-  /// снова правильно отформатировать ее номер
   static CardSystemData? getCardSystemDataByNumber(
     String cardNumber, {
-    int? subscringLength,
+    int? substringLength,
   }) {
     if (cardNumber.isEmpty) return null;
-    subscringLength = subscringLength ?? cardNumber.length;
+    substringLength = substringLength ?? cardNumber.length;
 
-    if (subscringLength < 1) return null;
+    if (substringLength < 1) return null;
     Map? rawData;
     List<Map> tempSystems = [];
     for (var data in _data) {
@@ -342,12 +360,24 @@ class _CardSystemDatas {
       'numberMask': '0000 0000 0000 0000',
       'numDigits': 16,
     },
-    // {
-    //   'system': CardSystem.JCB,
-    //   'systemCode': '35',
-    //   'numberMask': '0000 0000 0000 0000 000',
-    //   'numDigits': 19,
-    // },
+    {
+      'system': CardSystem.UZ_CARD,
+      'systemCode': '8600',
+      'numberMask': '0000 0000 0000 0000',
+      'numDigits': 16,
+    },
+    {
+      'system': CardSystem.UZ_CARD,
+      'systemCode': '5614',
+      'numberMask': '0000 0000 0000 0000',
+      'numDigits': 16,
+    },
+    {
+      'system': CardSystem.HUMO,
+      'systemCode': '9860',
+      'numberMask': '0000 0000 0000 0000',
+      'numDigits': 16,
+    },
     {
       'system': CardSystem.DISCOVER,
       'systemCode': '60',

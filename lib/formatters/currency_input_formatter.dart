@@ -40,7 +40,7 @@ class CurrencySymbols {
   static const String EURO_SIGN = '€';
   static const String POUND_SIGN = '£';
   static const String YEN_SIGN = '￥';
-  static const String ETHERIUM_SIGN = 'Ξ';
+  static const String ETHEREUM_SIGN = 'Ξ';
   static const String BITCOIN_SIGN = 'Ƀ';
   static const String SWISS_FRANK_SIGN = '₣';
   static const String RUBLE_SIGN = '₽';
@@ -67,7 +67,7 @@ class CurrencyInputFormatter extends TextInputFormatter {
   /// added in front of the resulting string. E.g. $ or €
   /// some of the signs are available via constants like [CurrencySymbols.EURO_SIGN]
   /// but you can basically add any string instead of it. The main rule is that the string
-  /// must not contain digits, preiods, commas and dashes
+  /// must not contain digits, periods, commas and dashes
   /// [trailingSymbol] is the same as leading but this symbol will be added at the
   /// end of your resulting string like 1,250€ instead of €1,250
   /// [useSymbolPadding] adds a space between the number and trailing / leading symbols
@@ -126,13 +126,14 @@ class CurrencyInputFormatter extends TextInputFormatter {
   ) {
     final trailingLength = _getTrailingLength();
     final leadingLength = _getLeadingLength();
-    final oldCaretIndex = max(oldValue.selection.start, oldValue.selection.end);
-    final newCaretIndex = max(newValue.selection.start, newValue.selection.end);
+    int oldCaretIndex = max(oldValue.selection.start, oldValue.selection.end);
+    int newCaretIndex = max(newValue.selection.start, newValue.selection.end);
     var newText = newValue.text;
     final newAsNumeric = toNumericString(
       newText,
       allowPeriod: true,
       mantissaSeparator: _mantissaSeparator,
+      mantissaLength: mantissaLength,
     );
     _updateValue(newAsNumeric);
 
@@ -158,6 +159,26 @@ class CurrencyInputFormatter extends TextInputFormatter {
               ),
             ),
           );
+        }
+      } else {
+        if (thousandSeparator == ThousandSeparator.Space) {
+          /// It's a dirty hack to try and fix this issue
+          /// https://github.com/caseyryan/flutter_multi_formatter/issues/145
+          /// The problem there is that after erasing just a white space
+          /// the number from e.g. this 45 555 $ becomes this 45555 $ but
+          /// after applying the format again in regains the lost space and
+          /// this leads to a situation when nothing seems to be changed
+          final differences = _findDifferentChars(
+            longerString: oldText,
+            shorterString: newText,
+          );
+          if (differences.length == 1 && differences.first == ' ') {
+            if (newCaretIndex > 0) {
+              newCaretIndex = newCaretIndex.subtractClamping(1);
+              oldCaretIndex = oldCaretIndex.subtractClamping(1);
+              newText = newText.removeCharAt(newCaretIndex);
+            }
+          }
         }
       }
       if (_hasErasedMantissaSeparator(
@@ -282,12 +303,12 @@ class CurrencyInputFormatter extends TextInputFormatter {
       (oldCaretIndex + lengthDiff),
       leadingLength + 1,
     );
-
     if (initialCaretOffset < 1) {
       if (newAsCurrency.isNotEmpty) {
         initialCaretOffset += 1;
       }
     }
+
     if (_printDebugInfo) {
       print('RETURN 8 $newAsCurrency');
     }
@@ -307,6 +328,7 @@ class CurrencyInputFormatter extends TextInputFormatter {
       value,
       allowPeriod: true,
       mantissaSeparator: _mantissaSeparator,
+      mantissaLength: mantissaLength,
     );
     try {
       return double.parse(value) == 0.0;
@@ -371,7 +393,13 @@ class CurrencyInputFormatter extends TextInputFormatter {
         longerString: newText,
         shorterString: oldText,
       );
-      if (_containsMantissaSeparator(newChars)) {
+
+      /// [hasWrongSeparator] is an attempt to fix this
+      /// https://github.com/caseyryan/flutter_multi_formatter/issues/114
+      /// Not sure if it will have some side effect
+      final hasWrongSeparator =
+          newText.contains(',.') || newText.contains('.,');
+      if (_containsMantissaSeparator(newChars) || hasWrongSeparator) {
         return true;
       }
     }
@@ -435,10 +463,19 @@ class CurrencyInputFormatter extends TextInputFormatter {
     if (input.isEmpty) return false;
     var clearedInput = input;
     if (leadingSymbol.isNotEmpty) {
-      clearedInput = clearedInput.replaceAll(leadingSymbol, '');
+      /// allows to get read of an odd minus in front of a leading symbol
+      /// https://github.com/caseyryan/flutter_multi_formatter/issues/123
+      var sub = clearedInput.substring(
+        0,
+        clearedInput.indexOf(leadingSymbol) + 1,
+      );
+      if (sub.length > leadingSymbol.length) {
+        return true;
+      }
+      clearedInput = clearedInput.replaceAll(RegExp('[$leadingSymbol]+'), '');
     }
     if (trailingSymbol.isNotEmpty) {
-      clearedInput = clearedInput.replaceAll(trailingSymbol, '');
+      clearedInput = clearedInput.replaceAll(RegExp('[$trailingSymbol]+'), '');
     }
     clearedInput = clearedInput.replaceAll(' ', '');
     return _illegalCharsRegexp.hasMatch(clearedInput);

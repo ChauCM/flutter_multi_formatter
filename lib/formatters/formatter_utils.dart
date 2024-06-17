@@ -48,16 +48,27 @@ String toNumericString(
   String mantissaSeparator = '.',
   String? errorText,
   bool allowAllZeroes = false,
+  int? mantissaLength,
 }) {
   if (inputString == null) {
     return '';
   } else if (inputString == '+') {
     return inputString;
   }
+  // if (mantissaLength != null) {
+  //   if (mantissaLength < 1) {
+  //     /// a small hack to fix this https://github.com/caseyryan/flutter_multi_formatter/issues/136
+  //     // inputString = inputString.replaceAll('.', '');
+  //   }
+  // }
   if (mantissaSeparator == '.') {
     inputString = inputString.replaceAll(',', '');
   } else if (mantissaSeparator == ',') {
-    inputString = inputString.replaceAll('.', '').replaceAll(',', '.');
+    final fractionSep = _detectFractionSeparator(inputString);
+    if (fractionSep != null) {
+      inputString = inputString.replaceAll(fractionSep, '%FRAC%');
+    }
+    inputString = inputString.replaceAll('.', '').replaceAll('%FRAC%', '.');
   }
   var startsWithPeriod = numericStringStartsWithOrphanPeriod(
     inputString,
@@ -222,7 +233,7 @@ void checkMask(String mask) {
 /// added in front of the resulting string. E.g. $ or €
 /// some of the signs are available via constants like [MoneySymbols.EURO_SIGN]
 /// but you can basically add any string instead of it. The main rule is that the string
-/// must not contain digits, preiods, commas and dashes
+/// must not contain digits, periods, commas and dashes
 /// [trailingSymbol] is the same as leading but this symbol will be added at the
 /// end of your resulting string like 1,250€ instead of €1,250
 /// [useSymbolPadding] adds a space between the number and trailing / leading symbols
@@ -236,7 +247,7 @@ void checkMask(String mask) {
 //   String trailingSymbol = '',
 //   bool useSymbolPadding = false,
 // }) {
-//   var swapCommasAndPreriods = false;
+//   var swapCommasAndPeriods = false;
 //   if (mantissaLength <= 0) {
 //     mantissaLength = 0;
 //   }
@@ -250,10 +261,10 @@ void checkMask(String mask) {
 //     case ThousandSeparator.Period:
 
 //       /// yep, comma here is correct
-//       /// because swapCommasAndPreriods = true it will
+//       /// because swapCommasAndPeriods = true it will
 //       /// swap them all later
 //       tSeparator = ',';
-//       swapCommasAndPreriods = true;
+//       swapCommasAndPeriods = true;
 //       mantissaSeparator = ',';
 //       break;
 //     case ThousandSeparator.None:
@@ -264,7 +275,7 @@ void checkMask(String mask) {
 //       break;
 //     case ThousandSeparator.SpaceAndCommaMantissa:
 //       tSeparator = ' ';
-//       swapCommasAndPreriods = true;
+//       swapCommasAndPeriods = true;
 //       mantissaSeparator = ',';
 //       break;
 //     case ThousandSeparator.Space:
@@ -413,7 +424,7 @@ void checkMask(String mask) {
 //     result = '$reversed$mantissa';
 //   }
 
-//   if (swapCommasAndPreriods) {
+//   if (swapCommasAndPeriods) {
 //     return _swapCommasAndPeriods(result);
 //   }
 //   return result;
@@ -460,14 +471,14 @@ String? _detectFractionSeparator(String value) {
     return null;
   }
   final separator = value[index];
-  int numOccurences = 0;
+  int numOccurrences = 0;
   for (var i = 0; i < value.length; i++) {
     final char = value[i];
     if (char == separator) {
-      numOccurences++;
+      numOccurrences++;
     }
   }
-  if (numOccurences == 1) {
+  if (numOccurrences == 1) {
     return separator;
   }
   return null;
@@ -490,6 +501,7 @@ ShorteningPolicy _detectShorteningPolicyByStrLength(String evenPart) {
   return ShorteningPolicy.NoShortening;
 }
 
+/// [isRawValue] pass true if you
 String toCurrencyString(
   String value, {
   int mantissaLength = 2,
@@ -498,6 +510,7 @@ String toCurrencyString(
   String leadingSymbol = '',
   String trailingSymbol = '',
   bool useSymbolPadding = false,
+  bool isRawValue = false,
 }) {
   bool isNegative = false;
   if (value.startsWith('-')) {
@@ -516,7 +529,7 @@ String toCurrencyString(
     thousandSeparator,
   );
 
-  /// нужно только для того, чтобы недопустить числа начинающиеся с нуля
+  /// нужно только для того, чтобы не допустить числа начинающиеся с нуля
   /// 04.00 и т.д
   value = toNumericString(
     value,
@@ -524,11 +537,18 @@ String toCurrencyString(
     allowHyphen: true,
     allowPeriod: true,
     mantissaSeparator: mSeparator,
+    mantissaLength: mantissaLength,
   );
-  String? fractionalSeparator =
-      mantissaLength > 0 ? _detectFractionSeparator(value) : null;
+  bool hasFraction = mantissaLength > 0;
+  String? fractionalSeparator;
+  if (hasFraction) {
+    fractionalSeparator = _detectFractionSeparator(value);
+  } else {
+    value = value.replaceAll(tSeparator, '');
+  }
 
   var sb = StringBuffer();
+
   bool addedMantissaSeparator = false;
   for (var i = 0; i < value.length; i++) {
     final char = value[i];
@@ -547,6 +567,12 @@ String toCurrencyString(
         addedMantissaSeparator = true;
       } else {
         continue;
+      }
+    } else {
+      if (!hasFraction) {
+        if (char == '.' && char != tSeparator) {
+          break;
+        }
       }
     }
   }

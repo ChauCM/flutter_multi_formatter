@@ -4,20 +4,29 @@
 <img alt="Awesome Flutter" src="https://img.shields.io/badge/Awesome-Flutter-blue.svg?longCache=true&style=flat-square" />
 </a>
 
+---
+If you want to support my development you can donate some `ETH / USDT`
+**0xaDed99fda2AA53B3aFC8bB2d27b14910dB9CEdA1**
+
+<img src="https://github.com/caseyryan/reflect_buddy/blob/master/trust.jpg?raw=true" width="220"/>
+
+[Donate some Ethereum or USDT](https://link.trustwallet.com/send?address=0xaDed99fda2AA53B3aFC8bB2d27b14910dB9CEdA1&asset=c60)
+
+---
 
 **You might also like my other packages**
 
-***lite_state*** 
+**[lite_state](https://pub.dev/packages/lite_state)** 
 (Very simple and easy to use state machine for Flutter)
-https://pub.dev/packages/lite_state
+
 
 <a href="https://pub.dev/packages/lite_state"><img src="https://img.shields.io/pub/v/lite_state?logo=dart" alt="pub.dev"></a>[![style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart) <a href="https://github.com/Solido/awesome-flutter">
 <img alt="Awesome Flutter" src="https://img.shields.io/badge/Awesome-Flutter-blue.svg?longCache=true&style=flat-square" />
 </a>
 
-***flutter_instagram_storyboard***
+**[flutter_instagram_storyboard](https://pub.dev/packages/flutter_instagram_storyboard)**
 (A UI for setting up stories like in Instagram)
-https://pub.dev/packages/flutter_instagram_storyboard
+
 
 <a href="https://pub.dev/packages/flutter_instagram_storyboard"><img src="https://img.shields.io/pub/v/flutter_instagram_storyboard?logo=dart" alt="pub.dev"></a>[![style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart) <a href="https://github.com/Solido/awesome-flutter"></a>
 
@@ -34,12 +43,12 @@ https://pub.dev/packages/flutter_instagram_storyboard
 ## Special utilities 
 
 1. `Bitcoin (BTC) wallet validator;`
-2. `Digit exctractor (allows to extract all digits out of a string)`
+2. `Digit extractor (allows to extract all digits out of a string)`
 3. `Phone number validator (the check is based on country phone codes and masks so it's a more serious and reliable validation than a simple regular expression)`
 4. `"Is digit" checker (Simply checks if an input string value a digit or not)`
 5. `Currency string formatter (allows to convert a number to a currency string representation e.g. this 10000 to this 10,000.00$)`
 6. `Unfocuser (a widget that is used to unfocus any text fields without any boilerplate code. Extremely simple to use)`
-7. PinyinUtils class that contains a few usefull methods to work with chinese 
+7. PinyinUtils class that contains a few useful methods to work with chinese 
 pinyin
     - PinyinUtils.clearPunctuation : removes all punctuations from a string, including special chinese punctuation
     - PinyinUtils.containsTone: returns true if a string contains some tone. False otherwise
@@ -91,7 +100,7 @@ Row(
       flex: 3,
       child: CountryDropdown(
         printCountryName: true,
-        initialCountryCode: 'RU',
+        initialPhoneCode: '7',
         onCountrySelected: (PhoneCountryData countryData) {
           setState(() {
             _initialCountryData = countryData;
@@ -122,6 +131,21 @@ Row(
       ),
     )
   ],
+)
+```
+
+You can also filter the list of countries if you need 
+
+```dart
+CountryDropdown(
+    printCountryName: true,
+    initialPhoneCode: '7',
+    filter: PhoneCodes.findCountryDatasByCountryCodes(
+    countryIsoCodes: [
+        'RU',
+        'BR',
+        'DE',
+    ],
 )
 ```
 
@@ -376,7 +400,10 @@ String cardNumber, {
 });
 
 /// and a method to check is a card is valid
-bool isCardValidNumber(String cardNumber);
+bool isCardNumberValid(required String cardNumber,
+  bool checkLength = false,
+  bool useLuhnAlgo = true,
+});
 /// but it will return true only if the card system is supported, 
 /// so you should not really rely on that
 

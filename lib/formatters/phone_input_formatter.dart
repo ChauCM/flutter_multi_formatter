@@ -25,9 +25,8 @@ THE SOFTWARE.
 */
 
 import 'package:collection/collection.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
 
 import 'formatter_utils.dart';
 import 'phone_input_enums.dart';
@@ -35,6 +34,7 @@ import 'phone_input_enums.dart';
 class PhoneInputFormatter extends TextInputFormatter {
   final ValueChanged<PhoneCountryData?>? onCountrySelected;
   final bool allowEndlessPhone;
+  final bool shouldCorrectNumber;
   final String? defaultCountryCode;
 
   PhoneCountryData? _countryData;
@@ -44,14 +44,17 @@ class PhoneInputFormatter extends TextInputFormatter {
   /// and a country is detected
   /// this callback gets called
   /// [allowEndlessPhone] if true, a phone can
-  /// still be enterng after the whole mask is matched.
+  /// still be entering after the whole mask is matched.
   /// use if you are not sure that all masks are supported
+  /// [shouldCorrectNumber] if input number is wrong in some country as Rus and Aus,
+  /// the phone be corrected to new number
   /// [defaultCountryCode] if you set a default country code,
   /// the phone will be formatted according to its country mask
   /// and no leading country code will be present in the masked value
   PhoneInputFormatter({
     this.onCountrySelected,
     this.allowEndlessPhone = false,
+    this.shouldCorrectNumber = true,
     this.defaultCountryCode,
   });
 
@@ -86,14 +89,14 @@ class PhoneInputFormatter extends TextInputFormatter {
         _clearCountry();
       }
     }
-    if (onlyNumbers.length == 2) {
+    if (shouldCorrectNumber && onlyNumbers.length >= 2) {
       /// хак специально для России, со вводом номера с восьмерки
       /// меняем ее на 7
       var isRussianWrongNumber =
           onlyNumbers[0] == '8' && onlyNumbers[1] == '9' ||
               onlyNumbers[0] == '8' && onlyNumbers[1] == '3';
       if (isRussianWrongNumber) {
-        onlyNumbers = '7${onlyNumbers[1]}';
+        onlyNumbers = '7${onlyNumbers.substring(1)}';
         _countryData = null;
         _applyMask(
           '7',
@@ -104,7 +107,7 @@ class PhoneInputFormatter extends TextInputFormatter {
       final isAustralianPhoneNumber =
           onlyNumbers[0] == '0' && onlyNumbers[1] == '4';
       if (isAustralianPhoneNumber) {
-        onlyNumbers = '61${onlyNumbers[1]}';
+        onlyNumbers = '61${onlyNumbers.substring(1)}';
         _countryData = null;
         _applyMask('61', allowEndlessPhone);
       }
@@ -237,13 +240,19 @@ class PhoneInputFormatter extends TextInputFormatter {
     checkMask(newMask);
     final countryData = _findCountryDataByCountryCode(countryCode);
     var currentMask = countryData['phoneMask'];
-    if (currentMask != newMask) {
+
+    if (currentMask == newMask) {
+      return;
+    }
+
+    if (kDebugMode) {
       print(
         'Phone mask for country "${countryData['country']}"' +
             ' was replaced from $currentMask to $newMask',
       );
-      countryData['phoneMask'] = newMask;
     }
+
+    countryData['phoneMask'] = newMask;
   }
 
   static Map<String, dynamic> _findCountryDataByCountryCode(
@@ -336,6 +345,8 @@ String? formatAsPhoneNumber(
         return null;
       case InvalidPhoneAction.ShowPhoneInvalidString:
         return 'invalid phone';
+      case InvalidPhoneAction.DoNothing:
+        break;
     }
   }
   phone = toNumericString(
@@ -473,6 +484,22 @@ class PhoneCountryData {
 
   String? _maskWithoutCountryCode;
 
+  @override
+  bool operator ==(covariant PhoneCountryData other) {
+    return other.phoneCode == phoneCode &&
+        other.internalPhoneCode == internalPhoneCode &&
+        other.country == country;
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(
+      phoneCode,
+      internalPhoneCode,
+      country,
+    );
+  }
+
   String getCorrectMask(String? countryCode) {
     if (countryCode == null) {
       return phoneMask!;
@@ -608,18 +635,45 @@ class PhoneCountryData {
 }
 
 class PhoneCodes {
-  /// рекурсивно ищет в номере телефона код страны, начиная с конца
-  /// нужно для того, чтобы даже после setState и обнуления данных страны
-  /// снова правильно отформатировать телефон
+  /// Finds a list of PhoneCountryData objects by a list of
+  /// iso codes, e.g. countryIsoCodes: ['RU', 'US', 'AU']
+  static List<PhoneCountryData> findCountryDatasByCountryCodes({
+    required List<String> countryIsoCodes,
+  }) {
+    final list = <PhoneCountryData>[];
+    for (var code in countryIsoCodes) {
+      final data = getPhoneCountryDataByCountryCode(
+        code,
+      );
+      if (data != null) {
+        list.add(data);
+      }
+    }
+    return list;
+  }
+
+  /// Removes a country code from a phone
+  static String removeCountryCode(
+    String phoneWithCountryCode,
+  ) {
+    final countryData = getCountryDataByPhone(phoneWithCountryCode);
+    if (countryData != null) {
+      phoneWithCountryCode = phoneWithCountryCode.replaceAll('+', '').trim();
+      return phoneWithCountryCode.substring(countryData.phoneCode!.length);
+    }
+    return phoneWithCountryCode;
+  }
+
   static PhoneCountryData? getCountryDataByPhone(
     String phone, {
-    int? subscringLength,
+    int? substringLength,
   }) {
     if (phone.isEmpty) return null;
-    subscringLength = subscringLength ?? phone.length;
+    phone = phone.replaceAll('+', '');
+    substringLength = substringLength ?? phone.length;
 
-    if (subscringLength < 1) return null;
-    var phoneCode = phone.substring(0, subscringLength);
+    if (substringLength < 1) return null;
+    var phoneCode = phone.substring(0, substringLength);
 
     var rawData = _data.firstWhereOrNull(
       (data) =>
@@ -632,7 +686,7 @@ class PhoneCodes {
     if (rawData != null) {
       return PhoneCountryData.fromMap(rawData);
     }
-    return getCountryDataByPhone(phone, subscringLength: subscringLength - 1);
+    return getCountryDataByPhone(phone, substringLength: substringLength - 1);
   }
 
   static List<PhoneCountryData> getAllCountryDatasByPhoneCode(
@@ -656,8 +710,10 @@ class PhoneCodes {
 
   /// [returns] a list of all available country codes like
   /// ['RU', 'US', 'GB'] etc
-  static List<String> getAllCountryCodes() {
-    if (_countryCodes == null) {
+  static List<String> getAllCountryCodes({
+    bool isForce = false,
+  }) {
+    if (_countryCodes == null || isForce) {
       _countryCodes = _data.map((e) => e['countryCode'].toString()).toList();
     }
     return _countryCodes!;
@@ -665,8 +721,17 @@ class PhoneCodes {
 
   static List<PhoneCountryData>? _allCountryDatas;
 
-  static List<PhoneCountryData> getAllCountryDatas({String langCode = ''}) {
-    if (_allCountryDatas == null) {
+  /// [langCode] for now the only supported code
+  /// beside the default (english) is Russian.
+  /// countryRU. If you want to translate the names of the countries
+  /// to your language, please feel free to do it and make a pull request.
+  /// Just keep the naming convention like countryBR, countryDE and so on
+  /// [isForce] pass true if you need to update cache
+  static List<PhoneCountryData> getAllCountryDatas({
+    String langCode = '',
+    bool isForce = false,
+  }) {
+    if (_allCountryDatas == null || isForce) {
       _allCountryDatas = _data
           .map((e) => e.containsKey('country${langCode.toUpperCase()}')
               ? PhoneCountryData.fromMap(e, lang: langCode)
@@ -764,7 +829,8 @@ class PhoneCodes {
       'countryRU': 'Армения',
       'internalPhoneCode': '374',
       'countryCode': 'AM',
-      'phoneMask': '+000 000 000 0000',
+      'phoneMask': '+000 000 000 00',
+      'altMasks': ['+000 000 000 0000']
     },
     {
       'country': 'Aruba',
@@ -1015,7 +1081,7 @@ class PhoneCodes {
       'countryRU': 'Конго',
       'internalPhoneCode': '242',
       'countryCode': 'CG',
-      'phoneMask': '+000 00 000 0000',
+      'phoneMask': '+000 00 00 00000',
     },
     {
       'country': 'Cook Islands',
@@ -1057,7 +1123,7 @@ class PhoneCodes {
       'countryRU': 'Чешская Республика',
       'internalPhoneCode': '420',
       'countryCode': 'CZ',
-      'phoneMask': '+000 00 000 0000',
+      'phoneMask': '+000 000 000 000',
     },
     {
       'country': 'Denmark',
@@ -1209,7 +1275,10 @@ class PhoneCodes {
       'countryRU': 'Германия',
       'internalPhoneCode': '49',
       'countryCode': 'DE',
-      'phoneMask': '+00 00 000000000',
+      'phoneMask': '+00 00 00000000',
+      'altMasks': [
+        '+00 00 000000000',
+      ]
     },
     {
       'country': 'Ghana',
@@ -1867,7 +1936,7 @@ class PhoneCodes {
       'countryRU': 'Словакия',
       'internalPhoneCode': '421',
       'countryCode': 'SK',
-      'phoneMask': '+000 00 000 0000',
+      'phoneMask': '+000 000 000 000',
     },
     {
       'country': 'Slovenia',
@@ -2136,7 +2205,7 @@ class PhoneCodes {
       'countryRU': 'Конго, Демократическая Республика',
       'internalPhoneCode': '243',
       'countryCode': 'CD',
-      'phoneMask': '+000 00 000 0000',
+      'phoneMask': '+000 00 00 00000',
     },
     {
       'country': 'Cote d\'Ivoire',
@@ -2263,6 +2332,18 @@ class PhoneCodes {
       'internalPhoneCode': '7',
       'countryCode': 'RU',
       'phoneMask': '+0 (000) 000-00-00',
+    },
+    {
+      'country': 'Ascension Island',
+      'countryRU': 'Остров Вознесения',
+      'internalPhoneCode': '247',
+      'countryCode': 'AC',
+      'phoneMask': '+000 000000',
+      'altMasks': [
+        '+000 00000',
+        '+000 00000-00000',
+        '+000 000000-000000',
+      ]
     },
     {
       'country': 'Saint Barthélemy',

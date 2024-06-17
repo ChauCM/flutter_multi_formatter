@@ -1,3 +1,89 @@
+## [2.12.8]
+- Merged https://github.com/caseyryan/flutter_multi_formatter/pull/155 /// Fix decimal separator issue for countries using "," as decimal separator #155
+- https://github.com/caseyryan/flutter_multi_formatter/pull/153 /// Add Won sign
+- https://github.com/caseyryan/flutter_multi_formatter/pull/152 /// New mask for Germany
+## [2.12.4]
+- Added one more UZ_CARD format and HUMO according to this thread https://github.com/caseyryan/flutter_multi_formatter/issues/150
+## [2.12.3]
+- Added toStringAsSmartRound() to double extension
+- Re-Fixed a problem with incorrect rounding if mantissa == 0
+## [2.12.2]
+- Removed BTC from the list of fiat currencies
+## [2.12.1]
+- Fixed https://github.com/caseyryan/flutter_multi_formatter/issues/136 Error Range start 5 is out of text of length 1 #136
+
+## [2.12.0]
+- Updated SKD restrictions
+- formatAsCardNumber now also tries to format invalid cards
+- Added `toPhoneNumber()`, `toCardNumber()`, `isValidCardNumber()` string extensions
+## [2.11.16]
+- Added DoNothing clause
+## [2.11.15]
+- Added PhoneCodes.removeCountryCode method which simply remove a country code from a phone
+- PhoneCodes.getCountryDataByPhone now accepts phones with a leading plus
+## [2.11.14]
+- Fixed Luhn algorithm
+## [2.11.12]
+- Updated README
+- Added this https://github.com/caseyryan/flutter_multi_formatter/issues/137
+## [2.11.11]
+- Merged https://github.com/caseyryan/flutter_multi_formatter/pull/142
+## [2.11.10]
+- Completely changed the logic of Unfocuser widget since the previous one 
+doesn't work anymore
+## [2.11.9]
+Fixed Czech phone mask
+https://github.com/caseyryan/flutter_multi_formatter/issues/141
+## [2.11.8]
+Merged https://github.com/caseyryan/flutter_multi_formatter/pull/140 
+adding isForce parameter to getAllCountryCodes
+## [2.11.7]
+- Fixed missing Luhn algo check in isCardNumberValid function 
+## [2.11.6]
+Potential fix https://github.com/caseyryan/flutter_multi_formatter/issues/114
+## [2.11.5]
+Added Luhn algorithm to validate card numbers
+## [2.11.4]
+Fixed https://github.com/caseyryan/flutter_multi_formatter/issues/131
+Added new card system https://github.com/caseyryan/flutter_multi_formatter/issues/109
+- Fixed a bug with incorrect decimal point detection when mantissa length is 0
+## [2.11.2]
+- Merged this pull request https://github.com/caseyryan/flutter_multi_formatter/pull/132
+## [2.11.1]
+- Correct mask for Congo number https://github.com/caseyryan/flutter_multi_formatter/pull/127
+## [2.11.0]
+- CountryDropdown now only selects initialCountryData instead of phone code
+because there are cases when different countries share the same phone code 
+and we still need to tell them apart
+## [2.10.9]
+- Fixed https://github.com/caseyryan/flutter_multi_formatter/issues/123
+- Fixed https://github.com/caseyryan/flutter_multi_formatter/issues/116
+- Fixed https://github.com/caseyryan/flutter_multi_formatter/issues/122 by adding triggerOnCountrySelectedInitially param to CountryDropdown
+## [2.10.5]
+- CountryDropdown can now be filtered. If you need it to show only a 
+predefined list of countries. Just pass "filter" parameter like this 
+```child: CountryDropdown(
+        printCountryName: true,
+        initialPhoneCode: '7',
+        filter: PhoneCodes.findCountryDatasByCountryCodes(
+        countryIsoCodes: [
+            'RU',
+            'BR',
+            'DE',
+        ],
+        ),
+        onCountrySelected: (PhoneCountryData countryData) {
+        setState(() {
+            _initialCountryData = countryData;
+        });
+        },
+    ) 
+```
+## [2.10.4]
+- Unfocuser now has isEnabled parameter so it can be easily disabled when it's 
+not necessage e.g. on the web
+## [2.10.3]
+- CountryDropdown now does not have initialCountryCode parameter but uses initialPhoneCode instead, because some countries might have a few phone codes and we need to determin which one of them should be used
 ## [2.10.2]
 - Fixed a problem with incorrect card system detection
 - Fixed https://github.com/caseyryan/flutter_multi_formatter/issues/113
